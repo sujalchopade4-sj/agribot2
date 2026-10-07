@@ -1,6 +1,6 @@
 import json, os, subprocess, time, streamlit as st
 
-st.set_page_config(page_title="AgriBot Field Terminal", page_icon="🚜", layout="wide")
+st.set_page_config(page_title="AgriBot Tactical Field Terminal", page_icon="🚜", layout="wide")
 
 st.markdown("""
 <style>
@@ -25,13 +25,6 @@ def call_core(action, **kwargs):
     args = [EXE_PATH, STATE_FILE, action] + [f"{k}={v}" for k, v in kwargs.items()]
     return json.loads(subprocess.run(args, capture_output=True, text=True, check=True).stdout.strip())
 
-# FIX: only fetch a fresh "state" on the very first load of this session.
-# Previously this ran unconditionally on every rerun (including the rerun
-# that fires right after a button click), which overwrote the real message
-# from that action ("Moved up to [...]", "Undo Stack is empty...", etc.)
-# with the C++ program's default constructor message, since msg isn't
-# persisted to the state file. Button clicks now own st.session_state.state
-# from here on, so their messages actually stay visible.
 if "state" not in st.session_state:
     st.session_state.state = call_core("state")
 
@@ -42,12 +35,17 @@ THEME = {
 }
 FOG = {"bg": "#182026", "border": "#334155", "icon": "🌫️"}
 
-st.title("🛰️ AgriBot 5x5 Tactical Field Terminal")
+st.title("🛰️ AgriBot 5x5 Precision Patrol System")
 
-with st.expander("⚡ AUTONOMOUS SWEEP & SPEED CONTROLLER", expanded=True):
-    c1, c2 = st.columns([1.5, 1])
-    speed = c1.slider("Step Delay (seconds)", 0.05, 1.0, 0.25, 0.05)
-    if c2.button("🚀 Queue Full Lawnmower Sweep", use_container_width=True):
+with st.expander("⚡ AUTONOMOUS SWEEP & TARGETED PATROL CONTROLLER", expanded=True):
+    c1, c2, c3 = st.columns([1.2, 1, 1])
+    speed = c1.slider("Traversal Step Speed (seconds)", 0.05, 1.0, 0.2, 0.05)
+    
+    if c2.button("🎯 Targeted Treatment Patrol", use_container_width=True):
+        st.session_state.state = call_core("auto_target_route")
+        st.rerun()
+
+    if c3.button("🚀 Blind Lawnmower Sweep", use_container_width=True):
         cur_x, cur_y = st.session_state.state["x"], st.session_state.state["y"]
         for r in range(5):
             for c in (range(5) if r % 2 == 0 else range(4, -1, -1)):
@@ -64,7 +62,7 @@ col_map, col_ops = st.columns([1.5, 1], gap="large")
 
 def render_matrix(holder, s):
     with holder.container():
-        st.subheader("Field Matrix")
+        st.subheader("Field Matrix Topology")
         for r in range(5):
             cols = st.columns(5)
             for c in range(5):
@@ -81,39 +79,54 @@ with col_map:
     st.markdown("🤖 **Rover** | ⚡ **Solar Dock [0,0]** | 🌫️ **Fog** | 🌱 **Healthy** | 🌾 **Weed** | 🥀 **Blight**")
 
     st.markdown("---")
-    c1, c2, c3 = st.columns(3)
-    if c2.button("⬆️ North", use_container_width=True): st.session_state.state = call_core("move", dir="up"); st.rerun()
-    c4, c5, c6 = st.columns(3)
-    if c4.button("⬅ West", use_container_width=True): st.session_state.state = call_core("move", dir="left"); st.rerun()
-    if c5.button("⬇️ South", use_container_width=True): st.session_state.state = call_core("move", dir="down"); st.rerun()
-    if c6.button("➡️ East", use_container_width=True): st.session_state.state = call_core("move", dir="right"); st.rerun()
+    st.subheader("8-Directional Teleoperation Control")
+
+    d1, d2, d3 = st.columns(3)
+    if d1.button("↖️ Up-Left", use_container_width=True): st.session_state.state = call_core("move", dir="up-left"); st.rerun()
+    if d2.button("⬆️ North", use_container_width=True): st.session_state.state = call_core("move", dir="up"); st.rerun()
+    if d3.button("↗️ Up-Right", use_container_width=True): st.session_state.state = call_core("move", dir="up-right"); st.rerun()
+
+    d4, d5, d6 = st.columns(3)
+    if d4.button("⬅ West", use_container_width=True): st.session_state.state = call_core("move", dir="left"); st.rerun()
+    if d5.button("🎯 Center Scan", use_container_width=True): st.session_state.state = call_core("inspect"); st.rerun()
+    if d6.button("➡️ East", use_container_width=True): st.session_state.state = call_core("move", dir="right"); st.rerun()
+
+    d7, d8, d9 = st.columns(3)
+    if d7.button("↙️ Dn-Left", use_container_width=True): st.session_state.state = call_core("move", dir="down-left"); st.rerun()
+    if d8.button("⬇️ South", use_container_width=True): st.session_state.state = call_core("move", dir="down"); st.rerun()
+    if d9.button("↘️ Dn-Right", use_container_width=True): st.session_state.state = call_core("move", dir="down-right"); st.rerun()
 
     a1, a2, a3 = st.columns(3)
-    if a1.button("🔬 Inspect (-1%)", use_container_width=True): st.session_state.state = call_core("inspect"); st.rerun()
-    if a2.button("💦 Spray (-3%)", use_container_width=True): st.session_state.state = call_core("spray"); st.rerun()
-    if a3.button("⚡ Recharge", use_container_width=True, disabled=not (st.session_state.state["x"] == 0 and st.session_state.state["y"] == 0)):
+    if a1.button("💦 Precision Spray (-15% Tank)", use_container_width=True): st.session_state.state = call_core("spray"); st.rerun()
+    if a2.button("⚡ Solar & Tank Refill", use_container_width=True, disabled=not (st.session_state.state["x"] == 0 and st.session_state.state["y"] == 0)):
         st.session_state.state = call_core("recharge"); st.rerun()
+    if a3.button("🔄 Reset Field State", use_container_width=True): st.session_state.state = call_core("reset"); st.rerun()
 
-    u1, u2, u3 = st.columns(3)
-    if u1.button("⏪ Undo Stack", use_container_width=True): st.session_state.state = call_core("undo"); st.rerun()
-    if u2.button("⏩ Redo Stack", use_container_width=True): st.session_state.state = call_core("redo"); st.rerun()
-    if u3.button("🔄 Reset Field", use_container_width=True): st.session_state.state = call_core("reset"); st.rerun()
+    u1, u2 = st.columns(2)
+    if u1.button("⏪ Undo Stack Step", use_container_width=True): st.session_state.state = call_core("undo"); st.rerun()
+    if u2.button("⏩ Redo Stack Step", use_container_width=True): st.session_state.state = call_core("redo"); st.rerun()
 
 with col_ops:
-    st.subheader("Diagnostics")
+    st.subheader("System Diagnostics")
     batt = st.session_state.state["battery"]
+    chem = st.session_state.state.get("chemical", 100)
     disc = sum(sum(1 for cell in row if cell) for row in st.session_state.state["discovered"])
+    
     d1, d2, d3 = st.columns(3)
     d1.metric("Reserve Power", f"{batt}%")
-    d2.metric("Grid Vector", f"[{st.session_state.state['x']}, {st.session_state.state['y']}]")
-    d3.metric("Scouted", f"{disc}/25")
+    d2.metric("Chemical Payload", f"{chem}%")
+    d3.metric("Scouted Tiles", f"{disc}/25")
+    
+    st.caption("Battery Level")
     st.progress(batt / 100)
+    st.caption("Spray Chemical Tank")
+    st.progress(chem / 100)
 
     st.markdown("---")
     st.subheader("Mission Pipeline (`std::queue`)")
     s1, s2 = st.columns(2)
     q_act = s1.selectbox("Action", ["move", "spray", "inspect", "recharge"])
-    q_dir = s2.selectbox("Direction", ["up", "down", "left", "right"]) if q_act == "move" else None
+    q_dir = s2.selectbox("Direction", ["up", "down", "left", "right", "up-left", "up-right", "down-left", "down-right"]) if q_act == "move" else None
 
     b1, b2, b3 = st.columns(3)
     if b1.button("Push Queue", use_container_width=True):
@@ -124,7 +137,7 @@ with col_ops:
     if b2.button("Step Queue", use_container_width=True):
         st.session_state.state = call_core("queue_next")
         st.rerun()
-    if b3.button("▶️ Run Queue", use_container_width=True):
+    if b3.button("▶️ Run Pipeline", use_container_width=True):
         while st.session_state.state["queue"]:
             st.session_state.state = call_core("queue_next")
             render_matrix(matrix_ph, st.session_state.state)
@@ -132,7 +145,6 @@ with col_ops:
             time.sleep(speed)
         st.rerun()
 
-    # Active Pipeline Visualizer
     with st.expander("Active Pipeline Tasks (`FIFO Queue`)", expanded=True):
         if st.session_state.state["queue"]:
             for idx, q_cmd in enumerate(st.session_state.state["queue"][:10], 1):
